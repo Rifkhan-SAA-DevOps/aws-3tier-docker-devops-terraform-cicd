@@ -1,3 +1,4 @@
+data "aws_caller_identity" "current" {}
 # -----------------------------
 # GitHub Actions OIDC Provider
 # -----------------------------
@@ -148,6 +149,34 @@ resource "aws_iam_policy" "github_actions_ssm_migration" {
           "ssm:ListCommands"
         ]
 
+        Resource = "*"
+        }, {
+        Sid    = "AllowDescribeEC2Instances"
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowSSMSendCommand"
+        Effect = "Allow"
+        Action = [
+          "ssm:SendCommand"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"
+        ]
+      },
+      {
+        Sid    = "AllowSSMCommandStatus"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetCommandInvocation",
+          "ssm:ListCommandInvocations",
+          "ssm:ListCommands"
+        ]
         Resource = "*"
       }
     ]
