@@ -14,6 +14,7 @@ env:
   AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
   DB_NAME: ${{ vars.DB_NAME }}
   DB_USER: ${{ vars.DB_USER }}
+  DB_HOST: ${{ vars.DB_HOST }}
 
 jobs:
   migrate:
@@ -67,10 +68,10 @@ jobs:
             --parameters commands='[
               "set -e",
               "sudo dnf install -y git mariadb105",
-              "rm -rf /tmp/blog-db-migration",
-              "git clone https://github.com/${{ github.repository }}.git /tmp/blog-db-migration",
-              "cd /tmp/blog-db-migration",
-              "RDS_ENDPOINT=$(grep '^DB_HOST=' /opt/blog-backend/.env | cut -d'=' -f2)",
+              "rm -rf /tmp/db-migration",
+              "git clone https://github.com/${{ github.repository }}.git /tmp/db-migration",
+              "cd /tmp/db-migration",
+              "RDS_ENDPOINT='${{ vars.DB_HOST }}'",
               "echo Running database migration against $RDS_ENDPOINT",
               "mysql -h $RDS_ENDPOINT -u ${{ env.DB_USER }} -p'\''${{ secrets.DB_PASSWORD }}'\'' ${{ env.DB_NAME }} < mysql-init/01-schema.sql",
               "if [ -f mysql-init/02-seed.sql ]; then mysql -h $RDS_ENDPOINT -u ${{ env.DB_USER }} -p'\''${{ secrets.DB_PASSWORD }}'\'' ${{ env.DB_NAME }} < mysql-init/02-seed.sql; fi",

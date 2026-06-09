@@ -1,0 +1,69 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "client/**"
+      - ".github/workflows/deploy-frontend.yml"
+
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+  FRONTEND_ECR_REPOSITORY: ${{ vars.FRONTEND_ECR_REPOSITORY }}
+  FRONTEND_ASG_NAME: ${{ vars.FRONTEND_ASG_NAME }}
+
+jobs:
+  deploy-frontend:
+    name: Build, Push, and Refresh Frontend ASG
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: vars
+        run: |
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            --build-arg VITE_API_URL=/api \
+            -t $FRONTEND_ECR_REPOSITORY:latest \
+            -t $FRONTEND_ECR_REPOSITORY:${{ steps.vars.outputs.SHORT_SHA }} \
+            ./client
+
+      - name: Push frontend image to ECR
+        run: |
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ECR_REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+          docker tag $FRONTEND_ECR_REPOSITORY:latest $ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:latest
+          docker tag $FRONTEND_ECR_REPOSITORY:${{ steps.vars.outputs.SHORT_SHA }} $ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:${{ steps.vars.outputs.SHORT_SHA }}
+
+          docker push $ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$FRONTEND_ECR_REPOSITORY:${{ steps.vars.outputs.SHORT_SHA }}
+
+      - name: Refresh frontend ASG
+        run: |
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "$FRONTEND_ASG_NAME" \
+            --preferences MinHealthyPercentage=50,InstanceWarmup=300
