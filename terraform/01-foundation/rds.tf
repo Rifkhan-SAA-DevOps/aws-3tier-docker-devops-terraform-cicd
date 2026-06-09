@@ -1,18 +1,27 @@
+# -----------------------------
+# RDS Subnet Group
+# RDS uses only private DB subnets
+# -----------------------------
 resource "aws_db_subnet_group" "main" {
   name = "${var.project_name}-db-subnet-group"
 
   subnet_ids = [
-    aws_subnet.private_1.id,
-    aws_subnet.private_2.id
+    aws_subnet.private_db_1.id,
+    aws_subnet.private_db_2.id
   ]
 
   tags = {
     Name        = "${var.project_name}-db-subnet-group"
     Project     = var.project_name
     Environment = var.environment
+    Tier        = "database"
   }
 }
 
+# -----------------------------
+# RDS MySQL Database
+# Private database layer
+# -----------------------------
 resource "aws_db_instance" "mysql" {
   identifier = "${var.project_name}-mysql"
 
@@ -37,6 +46,8 @@ resource "aws_db_instance" "mysql" {
   publicly_accessible = false
   multi_az            = false
 
+  # Cost-aware learning setup
+  # For real production, use 7 or more
   backup_retention_period = 0
 
   deletion_protection = false
@@ -48,5 +59,6 @@ resource "aws_db_instance" "mysql" {
     Name        = "${var.project_name}-mysql"
     Project     = var.project_name
     Environment = var.environment
+    Tier        = "database"
   }
 }
