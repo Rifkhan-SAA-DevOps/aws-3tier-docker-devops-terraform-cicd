@@ -512,15 +512,83 @@ This keeps RDS private and avoids direct database exposure.
 
 ## 📸 Screenshots
 
-```md
-![Live Application](./docs/images/live-application.png)
-![AWS ALB](./docs/images/aws-alb.png)
-![Auto Scaling Groups](./docs/images/asg.png)
+### Live Application
+
+![Live Application](./docs/images/frontpage.png)
+![Live Application](./docs/images/dashboard.png)
+![Live Application](./docs/images/view-post.png)
+![Live Application](./docs/images/registerpage.png)
+
+### VPC
+
+![AWS VPC](./docs/images/vpc.png)
+![AWS VPC](./docs/images/vpc-1.png)
+
+### Subnets
+![Subnets](./docs/images/subnets.png)
+
+### Internet Loadbalancer
+
+![Subnets](./docs/images/plb.png)
+
+### Internel Loadbalancer
+
+![Subnets](./docs/images/ilb.png)
+
+### Frontend Launch Template
+
+![Frontend Launch Template](./docs/images/f-lt.png)
+
+### Backend Launch Template
+
+![Backend Launch Template](./docs/images/b-lt.png)
+
+### Front Auto Scaling Groups
+
+![Auto Scaling Groups](./docs/images/fasg-1.png)
+![Auto Scaling Groups](./docs/images/fasg-2.png)
+
+### Backend Auto Scaling Groups
+
+![Auto Scaling Groups](./docs/images/basg.png)
+![Auto Scaling Groups](./docs/images/basg-1.png)
+
+### ECR
+
 ![ECR Repositories](./docs/images/ecr.png)
+
+### Frontend image
+
+![Frontend image](./docs/images/f-image.png)
+
+### backend image
+
+![backend image](./docs/images/b-image.png)
+
+### RDS
+
+![RDS](./docs/images/rds.png)
+
+### ACM
+
+![ACM](./docs/images/acm.png)
+![ACM](./docs/images/acm-1.png)
+
+### Route53
+
+![Route53](./docs/images/route53.png)
+
+### Security Groups
+
+![Internet Loadbalancer Security Group](./docs/images/pu-alb-sg.png)
+![frontend Server Security Group](./docs/images/f-ec2-sg.png)
+![Internal Loadbalancer Security Group](./docs/images/i-alb-sg.png)
+![Backend Server Security Group](./docs/images/b-ec2-sg.png)
+![RDS Security Group](./docs/images/rds-sg.png)
+
+
 ![GitHub Actions CI/CD](./docs/images/github-actions.png)
 ![Terraform State Backend](./docs/images/terraform-backend.png)
-![RDS Private Database](./docs/images/rds.png)
-```
 
 
 ---
