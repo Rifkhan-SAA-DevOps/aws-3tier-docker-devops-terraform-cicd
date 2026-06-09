@@ -229,3 +229,55 @@ resource "aws_iam_role_policy_attachment" "github_actions_asg_refresh" {
   role       = aws_iam_role.github_actions_ecr_push.name
   policy_arn = aws_iam_policy.github_actions_asg_refresh.arn
 }
+
+
+# -----------------------------
+# IAM Policy for GitHub Actions Terraform Plan/Apply
+# Learning/portfolio broad policy
+# Later we can reduce this to least privilege
+# -----------------------------
+resource "aws_iam_policy" "github_actions_terraform" {
+  name        = "${var.project_name}-github-actions-terraform-policy"
+  description = "Allow GitHub Actions to run Terraform for this project"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "TerraformProjectAccess"
+        Effect = "Allow"
+
+        Action = [
+          "ec2:*",
+          "elasticloadbalancing:*",
+          "autoscaling:*",
+          "iam:*",
+          "rds:*",
+          "ecr:*",
+          "route53:*",
+          "acm:*",
+          "s3:*",
+          "dynamodb:*",
+          "ssm:*",
+          "logs:*",
+          "cloudwatch:*",
+          "sts:GetCallerIdentity"
+        ]
+
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.project_name}-github-actions-terraform-policy"
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_terraform" {
+  role       = aws_iam_role.github_actions_ecr_push.name
+  policy_arn = aws_iam_policy.github_actions_terraform.arn
+}
