@@ -41,3 +41,19 @@ variable "key_name" {
   description = "Existing EC2 key pair name"
   type        = string
 }
+
+variable "github_owner" {
+  description = "GitHub username or organization name"
+  type        = string
+}
+
+variable "github_repo" {
+  description = "GitHub repository name"
+  type        = string
+}
+
+variable "github_branch" {
+  description = "GitHub branch allowed to assume AWS role"
+  type        = string
+  default     = "main"
+}
