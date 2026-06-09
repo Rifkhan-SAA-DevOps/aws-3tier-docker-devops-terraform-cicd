@@ -1,6 +1,6 @@
 # 🚀 BlogOps 3-Tier DevOps Platform on AWS
 
-> **Production-style fullstack application deployed on AWS using Docker, ECR, Terraform, Auto Scaling, ALB, RDS, Route 53, ACM, GitHub Actions, OIDC, and CI/CD.**
+> **Production-style fullstack application fully provisioned with Terraform IaC and deployed on AWS using Docker, ECR, Auto Scaling, ALB, RDS, Route 53, ACM, GitHub Actions, OIDC, and CI/CD.**
 
 ![AWS](https://img.shields.io/badge/AWS-Cloud-orange?style=for-the-badge&logo=amazonaws)
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?style=for-the-badge&logo=terraform)
@@ -14,7 +14,9 @@
 
 ## 📌 Project Overview
 
-This project is a **fullstack DevOps platform** built to demonstrate real-world AWS infrastructure, containerization, automation, CI/CD, and production deployment practices.
+This project is a **fullstack DevOps platform provisioned through Terraform** to demonstrate real-world AWS infrastructure, containerization, automation, CI/CD, and production deployment practices.
+
+Unlike a manually configured AWS project, this infrastructure is defined as code. Terraform creates and manages the VPC, subnets, route tables, NAT Gateway, security groups, ECR repositories, IAM roles, RDS database, public/internal ALBs, target groups, Launch Templates, Auto Scaling Groups, Route 53 records, ACM HTTPS configuration, and remote state backend.
 
 The application includes:
 
@@ -52,6 +54,100 @@ It demonstrates:
 - HTTPS with ACM and Route 53
 - Cost-aware production-style infrastructure
 
+
+---
+
+## 🧱 Terraform Is the Core of This Project
+
+This project was not created by clicking resources manually in the AWS Console. The complete cloud platform is built using **Terraform Infrastructure as Code**.
+
+Terraform manages the infrastructure in clear stages:
+
+```text
+00-backend    → Terraform remote state backend
+01-foundation → Core AWS networking, security, ECR, IAM, RDS, ALBs
+02-runtime    → Launch Templates, Auto Scaling Groups, EC2 runtime automation
+03-dns        → ACM certificate, Route 53 records, HTTPS listener, HTTP redirect
+```
+
+### What Terraform creates
+
+| Terraform Stage | Responsibility | Main AWS Resources |
+|---|---|---|
+| `00-backend` | Remote state foundation | S3 bucket, DynamoDB lock table |
+| `01-foundation` | Base infrastructure | VPC, subnets, IGW, NAT Gateway, route tables, security groups, ECR, IAM, RDS, public ALB, internal ALB, target groups |
+| `02-runtime` | Application runtime | Launch Templates, frontend ASG, backend ASG, EC2 user data, listener rules |
+| `03-dns` | DNS and HTTPS | ACM certificate or existing certificate ARN, Route 53 alias records, HTTPS listener, HTTP to HTTPS redirect |
+
+### Why the project is split into Terraform stages
+
+The infrastructure is intentionally not kept in one huge Terraform folder. It is staged to follow a real production lifecycle:
+
+```mermaid
+flowchart TD
+    Backend[00-backend\nS3 State + DynamoDB Lock] --> Foundation[01-foundation\nNetwork + Security + ECR + RDS + ALBs]
+    Foundation --> Images[GitHub Actions\nBuild + Push Images to ECR]
+    Images --> Runtime[02-runtime\nLaunch Templates + ASGs]
+    Runtime --> Migration[DB Migration\nSSM Run Command]
+    Migration --> DNS[03-dns\nRoute 53 + ACM + HTTPS]
+```
+
+This solves a real deployment problem:
+
+```text
+Bad flow:
+Terraform creates ASG before Docker images exist
+→ EC2 starts
+→ docker pull fails
+→ ALB target becomes unhealthy
+```
+
+Correct flow used here:
+
+```text
+Terraform creates ECR first
+→ GitHub Actions pushes Docker images
+→ Terraform creates ASG runtime
+→ EC2 pulls images successfully
+```
+
+### Terraform remote state design
+
+Terraform state is stored remotely instead of only on the local machine:
+
+```text
+S3 bucket      → stores terraform.tfstate
+DynamoDB table → prevents concurrent Terraform apply conflicts
+```
+
+This makes the project closer to a real team/project setup because the state is centralized, versioned, encrypted, and locked.
+
+### Terraform dependency flow
+
+The stages communicate through Terraform remote state outputs:
+
+```text
+01-foundation outputs:
+  VPC ID
+  Subnet IDs
+  Security Group IDs
+  ECR repository URLs
+  RDS endpoint
+  ALB ARNs
+  Target Group ARNs
+  Listener ARNs
+
+02-runtime reads those outputs:
+  Creates frontend/backend Launch Templates
+  Creates frontend/backend ASGs
+  Injects RDS endpoint and ECR image URLs into EC2 user data
+
+03-dns reads foundation outputs:
+  Attaches HTTPS listener to the public ALB
+  Points Route 53 alias records to the public ALB
+```
+
+This proves the project is not only deployed, but **designed using reusable IaC principles**.
 ---
 
 ## 🏗️ Final AWS Architecture
@@ -218,11 +314,81 @@ Security rules:
     └── 03-dns/                     # ACM + Route 53 + HTTPS
 ```
 
+
+---
+
+## 📂 Terraform Folder Structure
+
+```text
+terraform/
+├── 00-backend/
+│   ├── provider.tf
+│   ├── main.tf
+│   └── outputs.tf
+│
+├── 01-foundation/
+│   ├── backend.tf
+│   ├── provider.tf
+│   ├── variables.tf
+│   ├── terraform.tfvars          # not committed
+│   ├── vpc.tf                    # VPC, 6 subnets, IGW, NAT, route tables
+│   ├── security-groups.tf        # layered security groups
+│   ├── ecr.tf                    # frontend/backend ECR repos
+│   ├── iam.tf                    # EC2 IAM role and instance profile
+│   ├── github-oidc.tf            # GitHub Actions OIDC IAM role
+│   ├── rds.tf                    # private RDS MySQL
+│   ├── alb.tf                    # public ALB + internal ALB + target groups
+│   └── outputs.tf
+│
+├── 02-runtime/
+│   ├── backend.tf
+│   ├── provider.tf
+│   ├── variables.tf
+│   ├── terraform.tfvars          # not committed
+│   ├── data.tf                   # reads 01-foundation remote state
+│   ├── frontend-user-data.sh     # installs Docker and runs frontend container
+│   ├── backend-user-data.sh      # installs Docker and runs backend container
+│   ├── asg.tf                    # frontend/backend Launch Templates + ASGs
+│   └── outputs.tf
+│
+└── 03-dns/
+    ├── backend.tf
+    ├── provider.tf
+    ├── variables.tf
+    ├── terraform.tfvars          # not committed
+    ├── data.tf                   # reads 01-foundation remote state
+    ├── route53-acm.tf            # ACM, Route 53, HTTPS listener, redirect
+    └── outputs.tf
+```
+
+### Important Terraform files
+
+| File | Purpose |
+|---|---|
+| `vpc.tf` | Creates the 3-tier VPC network with public web, private app, and private DB subnets |
+| `security-groups.tf` | Creates strict layer-to-layer access rules |
+| `ecr.tf` | Creates Docker image repositories with lifecycle policy |
+| `iam.tf` | Creates EC2 instance role for ECR pull, SSM, and CloudWatch permissions |
+| `github-oidc.tf` | Allows GitHub Actions to assume AWS role without long-lived access keys |
+| `rds.tf` | Creates private RDS MySQL in DB subnets |
+| `alb.tf` | Creates public ALB, internal ALB, frontend target group, and backend target group |
+| `asg.tf` | Creates Launch Templates and Auto Scaling Groups |
+| `route53-acm.tf` | Creates/uses ACM certificate and maps the custom domain to ALB |
+
+### Terraform design decisions
+
+- Terraform creates infrastructure only.
+- GitHub Actions builds and pushes Docker images.
+- Database schema/seed is handled by a migration workflow, not Terraform.
+- ASGs are created only after ECR images exist.
+- Terraform state is remote and locked.
+- Sensitive values are passed using `terraform.tfvars` locally or `TF_VAR_` secrets/variables in CI.
+
 ---
 
 ## 🧱 Terraform Staged Architecture
 
-Terraform is separated into stages to follow a professional infrastructure lifecycle.
+Terraform is separated into stages to follow a professional infrastructure lifecycle. Each stage has its own remote state key, which keeps infrastructure responsibilities isolated and easier to manage.
 
 ```mermaid
 flowchart TD
@@ -356,6 +522,88 @@ This keeps RDS private and avoids direct database exposure.
 ![RDS Private Database](./docs/images/rds.png)
 ```
 
+
+---
+
+## ⚙️ Terraform Execution Flow
+
+Each Terraform stage is executed independently.
+
+```bash
+terraform init
+terraform fmt
+terraform validate
+terraform plan
+terraform apply
+```
+
+### Stage execution order
+
+```bash
+cd terraform/00-backend
+terraform init
+terraform apply
+
+cd ../01-foundation
+terraform init
+terraform apply
+
+# Push Docker images to ECR using GitHub Actions before runtime
+
+cd ../02-runtime
+terraform init
+terraform apply
+
+cd ../03-dns
+terraform init
+terraform apply
+```
+
+### Destroy order
+
+Infrastructure should be destroyed in reverse order:
+
+```bash
+cd terraform/03-dns
+terraform destroy
+
+cd ../02-runtime
+terraform destroy
+
+cd ../01-foundation
+terraform destroy
+```
+
+The `00-backend` stage should usually be kept because it stores Terraform state. Destroy it only if the entire project is being permanently removed.
+
+---
+
+## 🔁 How Terraform and CI/CD Work Together
+
+Terraform and GitHub Actions have separate responsibilities:
+
+| Responsibility | Tool |
+|---|---|
+| Create cloud infrastructure | Terraform |
+| Store infrastructure state | S3 + DynamoDB |
+| Build Docker images | GitHub Actions |
+| Store Docker images | Amazon ECR |
+| Deploy new app versions | ASG Instance Refresh |
+| Run DB schema/seed | GitHub Actions + SSM |
+| Manage HTTPS and DNS | Terraform |
+
+This separation makes the project more professional because infrastructure state and application release are not mixed.
+
+```mermaid
+flowchart LR
+    Terraform[Terraform] --> AWSInfra[AWS Infrastructure]
+    GitHub[GitHub Actions] --> DockerBuild[Build Docker Images]
+    DockerBuild --> ECR[Amazon ECR]
+    GitHub --> Refresh[ASG Instance Refresh]
+    Refresh --> EC2[New EC2 pulls latest image]
+    GitHub --> SSM[SSM DB Migration]
+    SSM --> RDS[(RDS MySQL)]
+```
 ---
 
 ## 🚀 Deployment Order
@@ -533,22 +781,13 @@ blog-devops-backend:a1b2c3d
 Frontend target group:
 
 ```text
-/
+/health
 ```
 
 Backend target group:
 
 ```text
 /api/health
-```
-
-Backend health endpoint example:
-
-```json
-{
-  "success": true,
-  "service": "modern-blog-api"
-}
 ```
 ---
 
@@ -569,46 +808,6 @@ terraform destroy
 
 ```bash
 terraform output
-```
-
-### Check Docker containers on EC2
-
-```bash
-docker ps
-docker logs blog-frontend
-docker logs blog-backend
-```
-
-### Check cloud-init logs
-
-```bash
-sudo cat /var/log/cloud-init-output.log
-```
-
-### Test frontend locally on EC2
-
-```bash
-curl http://localhost
-```
-
-### Test backend health locally on backend EC2
-
-```bash
-curl http://localhost:5000/api/health
-```
-
-### Start ASG instance refresh manually
-
-```bash
-aws autoscaling start-instance-refresh \
-  --auto-scaling-group-name blog-devops-prod-frontend-asg \
-  --preferences MinHealthyPercentage=50,InstanceWarmup=300
-```
-
-```bash
-aws autoscaling start-instance-refresh \
-  --auto-scaling-group-name blog-devops-prod-backend-asg \
-  --preferences MinHealthyPercentage=50,InstanceWarmup=300
 ```
 
 ---
@@ -687,7 +886,7 @@ For real production, improvements would include:
 
 ## 🏁 Final Result
 
-The final application is accessible through:
+The final result is a Terraform-provisioned, Docker-based, AWS 3-tier fullstack platform accessible through:
 
 ```text
 https://terraform-docker.rifkhan.xyz
@@ -709,6 +908,6 @@ Fullstack Developer | AWS SAA | DevOps / Cloud Engineering Learner
 
 - GitHub: [Rifkhan-SAA-DevOps](https://github.com/Rifkhan-SAA-DevOps)
 - LinkedIn: [mohrifkhan](https://www.linkedin.com/in/mohrifkhan/)
-- Portfolio: [portfolio.rifkhan.xyz](https://https://portfolio.rifkhan.xyz//)
+- Portfolio: [portfolio.rifkhan.xyz](https://portfolio.rifkhan.xyz/)
 
 ---
