@@ -193,3 +193,39 @@ resource "aws_iam_role_policy_attachment" "github_actions_ssm_migration" {
   role       = aws_iam_role.github_actions_ecr_push.name
   policy_arn = aws_iam_policy.github_actions_ssm_migration.arn
 }
+
+
+resource "aws_iam_policy" "github_actions_asg_refresh" {
+  name        = "${var.project_name}-${var.environment}-github-actions-asg-refresh-policy"
+  description = "Allow GitHub Actions to refresh frontend and backend ASGs"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "AllowStartInstanceRefresh"
+        Effect = "Allow"
+
+        Action = [
+          "autoscaling:StartInstanceRefresh",
+          "autoscaling:DescribeInstanceRefreshes",
+          "autoscaling:DescribeAutoScalingGroups"
+        ]
+
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-github-actions-asg-refresh-policy"
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_asg_refresh" {
+  role       = aws_iam_role.github_actions_ecr_push.name
+  policy_arn = aws_iam_policy.github_actions_asg_refresh.arn
+}
