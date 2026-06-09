@@ -1,0 +1,27 @@
+# if you change backend code, you need to rebuild
+    # docker compose up -d --build => In development, that is slow.
+
+# Development Docker should support:
+    # Frontend hot reload
+    # Backend nodemon auto restart
+    # Volume bind mounts
+
+# Create Backend Dev Dockerfile
+    # Inside server/, create:Dockerfile.dev
+
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache wget
+
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+EXPOSE 5000
+
+CMD ["npm", "run", "dev"]
