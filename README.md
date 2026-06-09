@@ -587,8 +587,17 @@ This keeps RDS private and avoids direct database exposure.
 ![RDS Security Group](./docs/images/rds-sg.png)
 
 
-![GitHub Actions CI/CD](./docs/images/github-actions.png)
-![Terraform State Backend](./docs/images/terraform-backend.png)
+### Frontend GitHub Actions CI/CD
+
+![Frontend GitHub Actions CI/CD](./docs/images/f-cicd.png)
+![Frontend GitHub Actions CI/CD](./docs/images/f-cicd-1.png)
+![Frontend GitHub Actions CI/CD](./docs/images/f-cicd-2.png)
+
+### Backend GitHub Actions CI/CD
+
+![Backend GitHub Actions CI/CD](./docs/images/b-cicd.png)
+![Backend GitHub Actions CI/CD](./docs/images/b-cicd-1.png)
+![Backend GitHub Actions CI/CD](./docs/images/b-cicd-2.png)
 
 
 ---
